@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>数学题生成器</title>
+<style>
+    * { box-sizing: border-box; }
+
+    body {
+        margin: 0;
+        padding: 24px 16px 60px;
+        background: #f1f5f9;
+        color: #1e293b;
+        font-family: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+
+    .app {
+        max-width: 880px;
+        margin: 0 auto;
+        background: #fff;
+        border-radius: 14px;
+        padding: 24px;
+        box-shadow: 0 6px 24px rgba(15, 23, 42, .08);
+    }
+
+    h1 {
+        margin: 0 0 20px;
+        font-size: 21px;
+        text-align: center;
+        letter-spacing: 1px;
+    }
+
+    .controls {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 14px;
+        padding: 14px 16px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+    }
+
+    .controls label {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 13px;
+        color: #64748b;
+    }
+
+    .controls input {
+        width: 110px;
+        padding: 8px 10px;
+        font: inherit;
+        font-size: 15px;
+        color: #1e293b;
+        background: #fff;
+        border: 1px solid #cbd5e1;
+        border-radius: 7px;
+        outline: none;
+    }
+
+    .controls input:focus { border-color: #3b82f6; }
+
+    button {
+        padding: 9px 20px;
+        font: inherit;
+        font-size: 15px;
+        color: #fff;
+        background: #3b82f6;
+        border: none;
+        border-radius: 7px;
+        cursor: pointer;
+        transition: background .15s;
+    }
+
+    button:hover:not(:disabled) { background: #2563eb; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    button.ghost { color: #475569; background: #e2e8f0; }
+    button.ghost:hover:not(:disabled) { background: #cbd5e1; }
+
+    .hint {
+        margin: 12px 2px 0;
+        font-size: 13px;
+        color: #d97706;
+        min-height: 18px;
+    }
+
+    #questions {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(216px, 1fr));
+        gap: 10px;
+        margin: 16px 0 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .q {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 12px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+    }
+
+    .q .idx {
+        min-width: 22px;
+        font-size: 13px;
+        color: #94a3b8;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .q .expr {
+        flex: 1;
+        font-size: 17px;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+    }
+
+    .q .ans {
+        width: 62px;
+        padding: 6px 8px;
+        font: inherit;
+        font-size: 16px;
+        text-align: center;
+        color: #1e293b;
+        background: #fff;
+        border: 2px solid #cbd5e1;
+        border-radius: 7px;
+        outline: none;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .q .ans:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, .15); }
+    .q .ans:disabled { color: #475569; background: #f8fafc; }
+
+    .q.ok .ans { border-color: #22c55e; background: #f0fdf4; color: #15803d; }
+    .q.bad .ans { border-color: #ef4444; background: #fef2f2; color: #b91c1c; }
+    .q.blank .ans { border-color: #f59e0b; }
+
+    .q .mark {
+        font-size: 13px;
+        white-space: nowrap;
+    }
+
+    .q.ok .mark { color: #16a34a; }
+    .q.bad .mark { color: #dc2626; }
+    .q.blank .mark { color: #d97706; }
+
+    .actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 22px;
+    }
+
+    .summary {
+        display: none;
+        margin-top: 18px;
+        padding: 16px 18px;
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 10px;
+        font-size: 15px;
+    }
+
+    .summary.show { display: block; }
+    .summary .score { font-size: 22px; font-weight: 700; color: #1d4ed8; }
+    .summary .tip { margin-top: 6px; font-size: 13px; color: #64748b; }
+</style>
+</head>
+<body>
+<div class="app">
+    <h1>100 以内加减法练习</h1>
+
+    <div class="controls">
+        <label>题目总数
+            <input id="count" type="number" min="1" max="200" value="10">
+        </label>
+        <label>最大数（不超过 100）
+            <input id="maxNum" type="number" min="2" max="100" value="20">
+        </label>
+        <button id="generate">生成题目</button>
+    </div>
+
+    <div id="hint" class="hint"></div>
+
+    <ol id="questions"></ol>
+
+    <div class="actions">
+        <button id="submit" disabled>交卷</button>
+        <button id="regenerate" class="ghost">重新生成</button>
+    </div>
+
+    <div id="summary" class="summary"></div>
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    var els = {
+        count: document.getElementById('count'),
+        maxNum: document.getElementById('maxNum'),
+        generate: document.getElementById('generate'),
+        regenerate: document.getElementById('regenerate'),
+        submit: document.getElementById('submit'),
+        hint: document.getElementById('hint'),
+        questions: document.getElementById('questions'),
+        summary: document.getElementById('summary')
+    };
+
+    var problems = [];   // [{ a, b, op, answer }]
+    var submitted = false;
+
+    /* ---------- 工具 ---------- */
+
+    function clampInt(value, min, max, fallback) {
+        var n = parseInt(value, 10);
+        if (!isFinite(n)) return fallback;
+        return Math.min(max, Math.max(min, n));
+    }
+
+    function shuffle(arr) {
+        for (var i = arr.length - 1; i > 0; i--) {
+            var j = Math.floor(Math.random() * (i + 1));
+            var t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+        }
+        return arr;
+    }
+
+    /* ---------- 题库 ---------- */
+
+    // 生成最大数 max 之内所有不重复的加减法题目：
+    //   加法 a + b <= max（a、b 均不小于 1，a <= b 避免 3+5 与 5+3 重复）
+    //   减法 a - b >= 1（a <= max）
+    function buildPool(max) {
+        var pool = [];
+        var a, b;
+        for (a = 1; a * 2 <= max; a++) {
+            for (b = a; a + b <= max; b++) {
+                pool.push({ a: a, b: b, op: '+', answer: a + b });
+            }
+        }
+        for (a = 2; a <= max; a++) {
+            for (b = 1; b < a; b++) {
+                pool.push({ a: a, b: b, op: '-', answer: a - b });
+            }
+        }
+        return pool;
+    }
+
+    /* ---------- 渲染 ---------- */
+
+    function render() {
+        els.questions.innerHTML = '';
+        var frag = document.createDocumentFragment();
+
+        problems.forEach(function (p, i) {
+            // 加法随机交换两个加数，题目看起来更自然
+            var left = p.a, right = p.b;
+            if (p.op === '+' && Math.random() < 0.5) { left = p.b; right = p.a; }
+
+            var li = document.createElement('li');
+            li.className = 'q';
+
+            var idx = document.createElement('span');
+            idx.className = 'idx';
+            idx.textContent = (i + 1) + '.';
+
+            var expr = document.createElement('span');
+            expr.className = 'expr';
+            expr.textContent = left + ' ' + p.op + ' ' + right + ' =';
+
+            var input = document.createElement('input');
+            input.className = 'ans';
+            input.type = 'text';
+            input.inputMode = 'numeric';
+            input.autocomplete = 'off';
+            input.setAttribute('aria-label', '第 ' + (i + 1) + ' 题答案');
+            input.addEventListener('input', function () {
+                this.value = this.value.replace(/[^\d]/g, '').slice(0, 4);
+            });
+
+            var mark = document.createElement('span');
+            mark.className = 'mark';
+
+            li.appendChild(idx);
+            li.appendChild(expr);
+            li.appendChild(input);
+            li.appendChild(mark);
+            frag.appendChild(li);
+        });
+
+        els.questions.appendChild(frag);
+        els.submit.disabled = false;
+    }
+
+    function setHint(text) {
+        els.hint.textContent = text || '';
+    }
+
+    /* ---------- 生成 ---------- */
+
+    function generate() {
+        var max = clampInt(els.maxNum.value, 2, 100, 100);
+        var count = clampInt(els.count.value, 1, 200, 20);
+        els.maxNum.value = max;
+        els.count.value = count;
+
+        var pool = buildPool(max);
+        if (!pool.length) {
+            setHint('最大数太小，无法生成题目，请设置为 2 以上。');
+            return;
+        }
+
+        var actual = Math.min(count, pool.length);
+        problems = shuffle(pool).slice(0, actual);
+        submitted = false;
+
+        render();
+        els.summary.className = 'summary';
+        els.summary.innerHTML = '';
+
+        setHint(actual < count
+            ? '最大数 ' + max + ' 时不重复的题目最多 ' + pool.length + ' 道，已生成 ' + actual + ' 道。'
+            : '');
+
+        var first = els.questions.querySelector('.ans');
+        if (first) first.focus();
+    }
+
+    /* ---------- 交卷 ---------- */
+
+    function submit() {
+        if (submitted || !problems.length) return;
+
+        var inputs = els.questions.querySelectorAll('.ans');
+        var rows = els.questions.querySelectorAll('.q');
+        var correct = 0, blank = 0;
+
+        for (var i = 0; i < problems.length; i++) {
+            var raw = inputs[i].value.trim();
+            var row = rows[i];
+            var mark = row.querySelector('.mark');
+
+            row.classList.remove('ok', 'bad', 'blank');
+
+            if (raw === '') {
+                blank++;
+                row.classList.add('blank');
+                mark.textContent = '未作答，答案 ' + problems[i].answer;
+            } else if (Number(raw) === problems[i].answer) {
+                correct++;
+                row.classList.add('ok');
+                mark.textContent = '✓';
+            } else {
+                row.classList.add('bad');
+                mark.textContent = '✗ 答案 ' + problems[i].answer;
+            }
+
+            inputs[i].disabled = true;
+        }
+
+        submitted = true;
+        els.submit.disabled = true;
+
+        var total = problems.length;
+        var rate = Math.round(correct / total * 100);
+        var tip = correct === total
+            ? '全部正确，太棒了！'
+            : (blank ? '有 ' + blank + ' 题未作答，错题可以再看一遍。' : '错题可以再看一遍，再来一次吧。');
+
+        els.summary.innerHTML =
+            '<div>答对 <span class="score">' + correct + '</span> / ' + total +
+            ' 题　正确率 ' + rate + '%</div>' +
+            '<div class="tip">' + tip + '</div>';
+        els.summary.className = 'summary show';
+        els.summary.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    /* ---------- 事件 ---------- */
+
+    els.generate.addEventListener('click', generate);
+    els.regenerate.addEventListener('click', generate);
+
+    els.submit.addEventListener('click', function () {
+        var blanks = 0;
+        els.questions.querySelectorAll('.ans').forEach(function (input) {
+            if (input.value.trim() === '') blanks++;
+        });
+        if (blanks && !confirm('还有 ' + blanks + ' 题没有作答，确定要交卷吗？')) return;
+        submit();
+    });
+
+    // 回车跳到下一题
+    els.questions.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        var inputs = Array.prototype.slice.call(els.questions.querySelectorAll('.ans'));
+        var next = inputs[inputs.indexOf(e.target) + 1];
+        if (next && !next.disabled) next.focus();
+    });
+
+    generate();
+})();
+</script>
+</body>
+</html>
