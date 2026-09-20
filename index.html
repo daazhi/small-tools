@@ -78,7 +78,7 @@
 
     button:hover:not(:disabled) { background: #2563eb; }
     button:disabled { opacity: .45; cursor: not-allowed; }
-    button.ghost { color: #475569; background: #e2e8f0; }
+    button.ghost { color: #475569; background: #e2e8f0; display: none; }
     button.ghost:hover:not(:disabled) { background: #cbd5e1; }
 
     .hint {
@@ -192,7 +192,7 @@
 
     <div class="actions">
         <button id="submit" disabled>交卷</button>
-        <!-- <button id="regenerate" class="ghost">重新生成</button> -->
+        <button id="regenerate" class="ghost">重新生成</button>
     </div>
 
     <div id="summary" class="summary"></div>
