@@ -1,10 +1,9 @@
 <!DOCTYPE html>
 <html lang="zh-cn">
 <head>
-<link rel="icon" href="./ico.svg">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>100以内加减法练习</title>
+<title>数学题生成器</title>
 <style>
     * { box-sizing: border-box; }
 
@@ -79,7 +78,7 @@
 
     button:hover:not(:disabled) { background: #2563eb; }
     button:disabled { opacity: .45; cursor: not-allowed; }
-    button.ghost { color: #475569; background: #e2e8f0; display: none; }
+    button.ghost { color: #475569; background: #e2e8f0; }
     button.ghost:hover:not(:disabled) { background: #cbd5e1; }
 
     .hint {
@@ -156,7 +155,6 @@
         display: flex;
         gap: 12px;
         margin-top: 22px;
-        justify-content: end;
     }
 
     .summary {
@@ -172,11 +170,154 @@
     .summary.show { display: block; }
     .summary .score { font-size: 22px; font-weight: 700; color: #1d4ed8; }
     .summary .tip { margin-top: 6px; font-size: 13px; color: #64748b; }
+
+    /* ---------- A4 打印 ---------- */
+
+    /* 屏幕上不显示，只出现在纸面上的姓名/日期栏 */
+    .paper-head { display: none; }
+
+    @page {
+        size: A4 portrait;
+        margin: 14mm 12mm;
+
+        /* 清空页边距框，让 Chrome 不要把网址、日期、页码印在纸面上。
+           打印对话框里的「页眉和脚注」默认是勾选的，而它注入的页眉页脚
+           正好画在这 6 个框里；留空就把它们挤掉了，同时也保住了页边距。 */
+        @top-left { content: ""; }
+        @top-center { content: ""; }
+        @top-right { content: ""; }
+        @bottom-left { content: ""; }
+        @bottom-center { content: ""; }
+        @bottom-right { content: ""; }
+    }
+
+    @media print {
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: #fff;
+            color: #000;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .app {
+            max-width: none;
+            padding: 0;
+            border-radius: 0;
+            box-shadow: none;
+        }
+
+        /* 纸面上不需要的交互控件 */
+        .controls,
+        .hint,
+        .actions { display: none !important; }
+
+        h1 {
+            margin: 0 0 5mm;
+            font-size: 18pt;
+            break-after: avoid;
+        }
+
+        .paper-head {
+            display: flex;
+            gap: 6mm;
+            margin-bottom: 7mm;
+            padding-bottom: 2.5mm;
+            border-bottom: 1px solid #000;
+            font-size: 11pt;
+        }
+
+        .paper-head span {
+            display: flex;
+            flex: 1;
+            align-items: flex-end;
+            white-space: nowrap;
+        }
+
+        .paper-head i {
+            flex: 1;
+            height: 1.1em;
+            margin-left: 2mm;
+            border-bottom: 1px solid #666;
+        }
+
+        #questions {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 6mm;
+            margin-top: 0;
+        }
+
+        /* 交卷后带上对错和答案，改用两栏以免信息挤在一行 */
+        body.submitted #questions {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .q {
+            gap: 2mm;
+            padding: 0 0 1.5mm;
+            background: none;
+            border: none;
+            border-bottom: 1px dotted #cbd5e1;
+            border-radius: 0;
+            break-inside: avoid;
+        }
+
+        /* 序号和算式都用固定宽度，答案横线才能在整页对齐 */
+        .q .idx {
+            flex: none;
+            width: 7mm;
+            font-size: 10pt;
+            color: #555;
+            text-align: right;
+        }
+
+        .q .expr {
+            flex: none;
+            width: 25mm;
+            font-size: 12pt;
+            color: #000;
+        }
+
+        .q .mark { font-size: 10pt; }
+
+        /* 答案框改成手写横线 */
+        .q .ans {
+            flex: none;
+            width: 15mm;
+            padding: 0 1mm;
+            font-size: 12pt;
+            color: #000;
+            background: none;
+            border: none;
+            border-bottom: 1px solid #333;
+            border-radius: 0;
+            box-shadow: none;
+        }
+
+        /* 屏幕上第一个输入框的聚焦高亮不要带上纸面 */
+        .q .ans:focus { border-color: #333; box-shadow: none; }
+
+        .q.ok .ans { background: #f0fdf4; color: #15803d; }
+        .q.bad .ans { background: #fef2f2; color: #b91c1c; }
+
+        .summary {
+            margin-top: 8mm;
+            break-inside: avoid;
+        }
+    }
 </style>
 </head>
 <body>
 <div class="app">
     <h1>100 以内加减法练习</h1>
+
+    <div class="paper-head">
+        <span>姓名<i></i></span>
+        <span>日期<i></i></span>
+        <span>用时<i></i></span>
+        <span>得分<i></i></span>
+    </div>
 
     <div class="controls">
         <label>题目总数
@@ -186,6 +327,7 @@
             <input id="maxNum" type="number" min="2" max="100" value="20">
         </label>
         <button id="generate">生成题目</button>
+        <button id="print" class="ghost">打印</button>
     </div>
 
     <div id="hint" class="hint"></div>
@@ -193,8 +335,7 @@
     <ol id="questions"></ol>
 
     <div class="actions">
-        <button id="submit" disabled style="background: #22c55e;">交卷</button>
-        <button id="regenerate" class="ghost">重新生成</button>
+        <button id="submit" disabled>交卷</button>
     </div>
 
     <div id="summary" class="summary"></div>
@@ -208,8 +349,8 @@
         count: document.getElementById('count'),
         maxNum: document.getElementById('maxNum'),
         generate: document.getElementById('generate'),
-        regenerate: document.getElementById('regenerate'),
         submit: document.getElementById('submit'),
+        print: document.getElementById('print'),
         hint: document.getElementById('hint'),
         questions: document.getElementById('questions'),
         summary: document.getElementById('summary')
@@ -322,6 +463,7 @@
         var actual = Math.min(count, pool.length);
         problems = shuffle(pool).slice(0, actual);
         submitted = false;
+        document.body.classList.remove('submitted');
 
         render();
         els.summary.className = 'summary';
@@ -369,6 +511,7 @@
 
         submitted = true;
         els.submit.disabled = true;
+        document.body.classList.add('submitted');
 
         var total = problems.length;
         var rate = Math.round(correct / total * 100);
@@ -387,7 +530,7 @@
     /* ---------- 事件 ---------- */
 
     els.generate.addEventListener('click', generate);
-    els.regenerate.addEventListener('click', generate);
+    els.print.addEventListener('click', function () { window.print(); });
 
     els.submit.addEventListener('click', function () {
         var blanks = 0;
